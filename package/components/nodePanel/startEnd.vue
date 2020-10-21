@@ -71,37 +71,28 @@ export default {
   },
   watch: {
     'formData.initiator': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:initiator': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:initiator`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:initiator': val })
     },
     'formData.formKey': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:formKey': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:formKey`]
-      }
-    },
-    element: {
-      handler: function(val) {
-        const cache = {
-          ...this.element.businessObject,
-          ...this.element.businessObject.$attrs
-        }
-        // 移除flowable前缀，格式化数组
-        for (const key in cache) {
-          if (key.indexOf('flowable:') === 0) {
-            const newKey = key.replace('flowable:', '')
-            cache[newKey] = cache[key]
-            delete cache[key]
-          }
-        }
-        this.formData = cache
-      },
-      immediate: true
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:formKey': val })
     }
+  },
+  created() {
+    const cache = {
+      ...this.element.businessObject,
+      ...this.element.businessObject.$attrs
+    }
+    // 移除flowable前缀，格式化数组
+    for (const key in cache) {
+      if (key.indexOf('flowable:') === 0) {
+        const newKey = key.replace('flowable:', '')
+        cache[newKey] = cache[key]
+        delete cache[key]
+      }
+    }
+    this.formData = cache
   }
 }
 </script>

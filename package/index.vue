@@ -31,6 +31,7 @@
           <div>
             <el-button size="mini" icon="el-icon-download" @click="saveXML(true)">下载xml</el-button>
             <el-button size="mini" icon="el-icon-picture" @click="saveImg('svg', true)">下载svg</el-button>
+            <el-button size="mini" type="primary" @click="save">保存模型</el-button>
           </div>
         </div>
       </el-header>
@@ -38,7 +39,7 @@
         <el-main style="padding: 0;">
           <div ref="canvas" class="canvas" />
         </el-main>
-        <el-aside style="width: 400px; background-color: #f0f2f5">
+        <el-aside style="width: 400px; min-height: 580px; background-color: #f0f2f5">
           <panel v-if="modeler" :modeler="modeler" :users="users" :groups="groups" :categorys="categorys" />
         </el-aside>
       </el-container>
@@ -57,6 +58,7 @@ import getInitStr from './flowable/init'
 // 引入flowable的节点文件
 import flowableModdle from './flowable/flowable.json'
 export default {
+  name: 'WorkflowBpmnModeler',
   components: {
     panel
   },
@@ -126,7 +128,7 @@ export default {
       const bbox = document.querySelector('.flow-containers .viewport').getBBox()
       const currentViewbox = this.modeler.get('canvas').viewbox()
       const elementMid = {
-        x: bbox.x + bbox.width / 2,
+        x: bbox.x + bbox.width / 2 - 65,
         y: bbox.y + bbox.height / 2
       }
       this.modeler.get('canvas').viewbox({
@@ -139,6 +141,7 @@ export default {
     },
     // 放大缩小
     zoomViewport(zoomIn = true) {
+      this.zoom = this.modeler.get('canvas').zoom()
       this.zoom += (zoomIn ? 0.1 : -0.1)
       this.modeler.get('canvas').zoom(this.zoom)
     },
@@ -292,6 +295,14 @@ export default {
       } catch (err) {
         console.log(err)
       }
+    },
+    async save() {
+      const process = this.getProcess()
+      const xml = await this.saveXML()
+      const svg = await this.saveImg()
+      const result = { process, xml, svg }
+      this.$emit('save', result)
+      window.parent.postMessage(result, '*')
     },
     openBpmn(file) {
       const reader = new FileReader()

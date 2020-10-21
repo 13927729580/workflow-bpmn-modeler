@@ -7,7 +7,7 @@ let publicPath = '/'
 let outputDir = 'dist'
 let appFileName = 'Demo'
 if (NODE_ENV === 'demo') {
-  publicPath = 'https://cdn.jsdelivr.net/gh/goldsubmarine/workflow-bpmn-modeler@master/docs/demo/'
+  publicPath = '/workflow-bpmn-modeler/demo/'
   outputDir = 'docs/demo'
   appFileName = 'Demo'
 }
@@ -70,7 +70,7 @@ module.exports = {
       .set('views', resolve('src/views'))
 
     config
-      .when(process.env.NODE_ENV !== 'development',
+      .when(NODE_ENV !== 'development' && NODE_ENV !== 'build',
         config => {
           config
             .optimization.splitChunks({

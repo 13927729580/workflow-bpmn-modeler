@@ -73,37 +73,31 @@ export default {
         const newCondition = this.modeler.get('moddle').create('bpmn:FormalExpression', { body: `<![CDATA[${val}]]>` })
         this.updateProperties({ conditionExpression: newCondition })
       } else {
-        delete this.element.businessObject[`conditionExpression`]
+        this.updateProperties({ conditionExpression: null })
       }
     },
     'formData.skipExpression': function(val) {
-      if (val) {
-        this.updateProperties({ 'skipExpression': val })
-      } else {
-        delete this.element.businessObject.$attrs[`skipExpression`]
-      }
-    },
-    element: {
-      handler: function(val) {
-        const cache = {
-          ...this.element.businessObject,
-          ...this.element.businessObject.$attrs
-        }
-        // 移除flowable前缀，格式化数组
-        for (const key in cache) {
-          if (key.indexOf('flowable:') === 0) {
-            const newKey = key.replace('flowable:', '')
-            cache[newKey] = cache[key]
-            delete cache[key]
-          }
-          if (key === 'conditionExpression') {
-            cache[key] = parseCDATA(cache[key].body)
-          }
-        }
-        this.formData = cache
-      },
-      immediate: true
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:skipExpression': val })
     }
+  },
+  created() {
+    const cache = {
+      ...this.element.businessObject,
+      ...this.element.businessObject.$attrs
+    }
+    // 移除flowable前缀，格式化数组
+    for (const key in cache) {
+      if (key.indexOf('flowable:') === 0) {
+        const newKey = key.replace('flowable:', '')
+        cache[newKey] = cache[key]
+        delete cache[key]
+      }
+      if (key === 'conditionExpression') {
+        cache[key] = parseCDATA(cache[key].body)
+      }
+    }
+    this.formData = cache
   }
 }
 </script>

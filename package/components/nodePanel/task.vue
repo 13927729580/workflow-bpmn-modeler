@@ -6,6 +6,16 @@
           <el-button size="small" @click="dialogName = 'executionListenerDialog'">编辑</el-button>
         </el-badge>
       </template>
+      <template #taskListener>
+        <el-badge :value="taskListenerLength">
+          <el-button size="small" @click="dialogName = 'taskListenerDialog'">编辑</el-button>
+        </el-badge>
+      </template>
+      <template #multiInstance>
+        <el-badge :is-dot="hasMultiInstance">
+          <el-button size="small" @click="dialogName = 'multiInstanceDialog'">编辑</el-button>
+        </el-badge>
+      </template>
     </x-form>
     <executionListenerDialog
       v-if="dialogName === 'executionListenerDialog'"
@@ -13,15 +23,31 @@
       :modeler="modeler"
       @close="finishExecutionListener"
     />
+    <taskListenerDialog
+      v-if="dialogName === 'taskListenerDialog'"
+      :element="element"
+      :modeler="modeler"
+      @close="finishTaskListener"
+    />
+    <multiInstanceDialog
+      v-if="dialogName === 'multiInstanceDialog'"
+      :element="element"
+      :modeler="modeler"
+      @close="finishMultiInstance"
+    />
   </div>
 </template>
 
 <script>
 import mixinPanel from '../../common/mixinPanel'
 import executionListenerDialog from './property/executionListener'
+import taskListenerDialog from './property/taskListener'
+import multiInstanceDialog from './property/multiInstance'
 export default {
   components: {
-    executionListenerDialog
+    executionListenerDialog,
+    taskListenerDialog,
+    multiInstanceDialog
   },
   mixins: [mixinPanel],
   props: {
@@ -43,6 +69,8 @@ export default {
       ],
       dialogName: '',
       executionListenerLength: 0,
+      taskListenerLength: 0,
+      hasMultiInstance: false,
       formData: {}
     }
   },
@@ -72,6 +100,12 @@ export default {
             xType: 'slot',
             name: 'executionListener',
             label: '执行监听器'
+          },
+          {
+            xType: 'slot',
+            name: 'taskListener',
+            label: '任务监听器',
+            show: !!_this.showConfig.taskListener
           },
           {
             xType: 'select',
@@ -108,6 +142,11 @@ export default {
             filterable: true,
             dic: { data: _this.groups, label: 'name', value: 'id' },
             show: !!_this.showConfig.candidateGroups && _this.formData.userType === 'candidateGroups'
+          },
+          {
+            xType: 'slot',
+            name: 'multiInstance',
+            label: '多实例'
           },
           {
             xType: 'switch',
@@ -203,153 +242,149 @@ export default {
     }
   },
   watch: {
-    'formData.userType': function(val) {
-      const types = ['assignee', 'candidateUsers', 'candidateGroups']
-      types.forEach(type => {
-        delete this.element.businessObject.$attrs[`flowable:${type}`]
-        delete this.formData[type]
-      })
+    'formData.userType': function(val, oldVal) {
+      if (oldVal) {
+        const types = ['assignee', 'candidateUsers', 'candidateGroups']
+        types.forEach(type => {
+          delete this.element.businessObject.$attrs[`flowable:${type}`]
+          delete this.formData[type]
+        })
+      }
     },
     'formData.assignee': function(val) {
-      if (this.formData.userType !== 'assignee') return
+      if (this.formData.userType !== 'assignee') {
+        delete this.element.businessObject.$attrs[`flowable:assignee`]
+        return
+      }
       this.updateProperties({ 'flowable:assignee': val })
     },
     'formData.candidateUsers': function(val) {
-      if (this.formData.userType !== 'candidateUsers') return
+      if (this.formData.userType !== 'candidateUsers') {
+        delete this.element.businessObject.$attrs[`flowable:candidateUsers`]
+        return
+      }
       this.updateProperties({ 'flowable:candidateUsers': val?.join(',') })
     },
     'formData.candidateGroups': function(val) {
-      if (this.formData.userType !== 'candidateGroups') return
+      if (this.formData.userType !== 'candidateGroups') {
+        delete this.element.businessObject.$attrs[`flowable:candidateGroups`]
+        return
+      }
       this.updateProperties({ 'flowable:candidateGroups': val?.join(',') })
     },
     'formData.async': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:async': true })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:async`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:async': true })
     },
     'formData.dueDate': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:dueDate': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:dueDate`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:dueDate': val })
     },
     'formData.formKey': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:formKey': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:formKey`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:formKey': val })
     },
     'formData.priority': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:priority': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:priority`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:priority': val })
     },
     'formData.skipExpression': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:skipExpression': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:skipExpression`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:skipExpression': val })
     },
     'formData.isForCompensation': function(val) {
-      if (val) {
-        this.updateProperties({ 'isForCompensation': true })
-      } else {
-        delete this.element.businessObject.$attrs[`isForCompensation`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'isForCompensation': val })
     },
     'formData.triggerable': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:triggerable': true })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:triggerable`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:triggerable': val })
     },
     'formData.class': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:class': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:class`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:class': val })
     },
     'formData.autoStoreVariables': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:autoStoreVariables': true })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:autoStoreVariables`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:autoStoreVariables': val })
     },
     'formData.exclude': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:exclude': true })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:exclude`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:exclude': val })
     },
     'formData.ruleVariablesInput': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:ruleVariablesInput': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:ruleVariablesInput`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:ruleVariablesInput': val })
     },
     'formData.rules': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:rules': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:rules`]
-      }
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:rules': val })
     },
     'formData.resultVariable': function(val) {
-      if (val) {
-        this.updateProperties({ 'flowable:resultVariable': val })
-      } else {
-        delete this.element.businessObject.$attrs[`flowable:resultVariable`]
-      }
-    },
-    element: {
-      handler: function(val) {
-        const cache = {
-          ...this.element.businessObject,
-          ...this.element.businessObject.$attrs
-        }
-        // 移除flowable前缀，格式化数组
-        for (const key in cache) {
-          if (key.indexOf('flowable:') === 0) {
-            const newKey = key.replace('flowable:', '')
-            cache[newKey] = cache[key]
-            delete cache[key]
-            if (newKey === 'candidateUsers') {
-              cache.userType = 'candidateUsers'
-              cache[newKey] = cache[newKey]?.split(',') || []
-            } else if (newKey === 'candidateGroups') {
-              cache.userType = 'candidateGroups'
-              cache[newKey] = cache[newKey]?.split(',') || []
-            } else if (newKey === 'assignee') {
-              cache.userType = 'assignee'
-            }
-          }
-        }
-        this.formData = cache
-        this.computedExecutionListenerLength()
-      },
-      deep: true,
-      immediate: true
+      if (val === '') val = null
+      this.updateProperties({ 'flowable:resultVariable': val })
     }
+  },
+  created() {
+    const cache = {
+      ...this.element.businessObject,
+      ...this.element.businessObject.$attrs
+    }
+    // 移除flowable前缀，格式化数组
+    for (const key in cache) {
+      if (key.indexOf('flowable:') === 0) {
+        const newKey = key.replace('flowable:', '')
+        cache[newKey] = cache[key]
+        delete cache[key]
+      }
+    }
+    for (const key in cache) {
+      if (key === 'candidateUsers') {
+        cache.userType = 'candidateUsers'
+        cache[key] = cache[key]?.split(',') || []
+      } else if (key === 'candidateGroups') {
+        cache.userType = 'candidateGroups'
+        cache[key] = cache[key]?.split(',') || []
+      } else if (key === 'assignee') {
+        cache.userType = 'assignee'
+      }
+    }
+    this.formData = cache
+    this.computedExecutionListenerLength()
+    this.computedTaskListenerLength()
+    this.computedHasMultiInstance()
   },
   methods: {
     computedExecutionListenerLength() {
-      this.executionListenerLength = this.element.businessObject.extensionElements?.values?.length ?? 0
+      this.executionListenerLength = this.element.businessObject.extensionElements?.values
+        ?.filter(item => item.$type === 'flowable:ExecutionListener').length ?? 0
+    },
+    computedTaskListenerLength() {
+      this.taskListenerLength = this.element.businessObject.extensionElements?.values
+        ?.filter(item => item.$type === 'flowable:TaskListener').length ?? 0
+    },
+    computedHasMultiInstance() {
+      if (this.element.businessObject.multiInstanceLoopCharacteristics) {
+        this.hasMultiInstance = true
+      } else {
+        this.hasMultiInstance = false
+      }
     },
     finishExecutionListener() {
       if (this.dialogName === 'executionListenerDialog') {
         this.computedExecutionListenerLength()
+      }
+      this.dialogName = ''
+    },
+    finishTaskListener() {
+      if (this.dialogName === 'taskListenerDialog') {
+        this.computedTaskListenerLength()
+      }
+      this.dialogName = ''
+    },
+    finishMultiInstance() {
+      if (this.dialogName === 'multiInstanceDialog') {
+        this.computedHasMultiInstance()
       }
       this.dialogName = ''
     }

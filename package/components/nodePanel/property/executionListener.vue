@@ -20,16 +20,15 @@
         <el-button type="primary" size="medium" @click="closeDialog">确 定</el-button>
       </span>
     </el-dialog>
-    <executionListenerParam v-if="showParamDialog" :value="formData.executionListener[nowIndex].params" @close="finishConfigParam" />
+    <listenerParam v-if="showParamDialog" :value="formData.executionListener[nowIndex].params" @close="finishConfigParam" />
   </div>
 </template>
 
 <script>
 import mixinPanel from '../../../common/mixinPanel'
-import executionListenerParam from './executionListenerParam'
-import { parseCDATA } from '../../../common/util'
+import listenerParam from './listenerParam'
 export default {
-  components: { executionListenerParam },
+  components: { listenerParam },
   mixins: [mixinPanel],
   data() {
     return {
@@ -76,7 +75,11 @@ export default {
                       { label: '类', value: 'class' },
                       { label: '表达式', value: 'expression' },
                       { label: '委托表达式', value: 'delegateExpression' }
-                    ]
+                    ],
+                    tooltip: `类：示例 com.company.MyCustomListener，自定义类必须实现 org.flowable.engine.delegate.TaskListener 接口 <br />
+                              表达式：示例 \${myObject.callMethod(task, task.eventName)} <br />
+                              委托表达式：示例 \${myListenerSpringBean} ，该 springBean 需要实现 org.flowable.engine.delegate.TaskListener 接口
+                    `
                   },
                   {
                     label: 'java 类名',
@@ -100,27 +103,29 @@ export default {
     }
   },
   mounted() {
-    this.formData.executionListener = this.element.businessObject.extensionElements?.values.map(item => {
-      let type
-      if ('class' in item.$attrs) type = 'class'
-      if ('expression' in item.$attrs) type = 'expression'
-      if ('delegateExpression' in item.$attrs) type = 'delegateExpression'
-      return {
-        event: item.$attrs.event,
-        type: type,
-        className: item.$attrs[type],
-        params: item.fields?.map(field => {
-          let fieldType
-          if ('string' in field) fieldType = 'string'
-          if ('expression' in field) fieldType = 'expression'
-          return {
-            name: field.$attrs.name,
-            type: fieldType,
-            value: parseCDATA(field[fieldType].body)
-          }
-        }) ?? []
-      }
-    }) ?? []
+    this.formData.executionListener = this.element.businessObject.extensionElements?.values
+      .filter(item => item.$type === 'flowable:ExecutionListener')
+      .map(item => {
+        let type
+        if ('class' in item) type = 'class'
+        if ('expression' in item) type = 'expression'
+        if ('delegateExpression' in item) type = 'delegateExpression'
+        return {
+          event: item.event,
+          type: type,
+          className: item[type],
+          params: item.fields?.map(field => {
+            let fieldType
+            if ('stringValue' in field) fieldType = 'stringValue'
+            if ('expression' in field) fieldType = 'expression'
+            return {
+              name: field.name,
+              type: fieldType,
+              value: field[fieldType]
+            }
+          }) ?? []
+        }
+      }) ?? []
   },
   methods: {
     configParam(index) {
@@ -145,22 +150,20 @@ export default {
         if (!extensionElements) {
           extensionElements = this.modeler.get('moddle').create('bpmn:ExtensionElements')
         }
-        const length = extensionElements.get('values').length
-        for (let i = 0; i < length; i++) {
-          // 清除旧值
-          extensionElements.get('values').pop()
-        }
+        // 清除旧值
+        extensionElements.values = extensionElements.values?.filter(item => item.$type !== 'flowable:ExecutionListener') ?? []
         this.formData.executionListener.forEach(item => {
           const executionListener = this.modeler.get('moddle').create('flowable:ExecutionListener')
-          executionListener.$attrs['event'] = item.event
-          executionListener.$attrs[item.type] = item.className
+          executionListener['event'] = item.event
+          executionListener[item.type] = item.className
           if (item.params && item.params.length) {
             item.params.forEach(field => {
               const fieldElement = this.modeler.get('moddle').create('flowable:Field')
-              fieldElement.$attrs['name'] = field.name
+              fieldElement['name'] = field.name
+              fieldElement[field.type] = field.value
               // 注意：flowable.json 中定义的string和expression类为小写，不然会和原生的String类冲突，此处为hack
-              const valueElement = this.modeler.get('moddle').create(`flowable:${field.type}`, { body: `<![CDATA[${field.value}]]>` })
-              fieldElement[field.type] = valueElement
+              // const valueElement = this.modeler.get('moddle').create(`flowable:${field.type}`, { body: `<![CDATA[${field.value}]]>` })
+              // fieldElement[field.type] = valueElement
               executionListener.get('fields').push(fieldElement)
             })
           }
@@ -170,7 +173,7 @@ export default {
       } else {
         const extensionElements = this.element.businessObject[`extensionElements`]
         if (extensionElements) {
-          extensionElements.values = extensionElements.values?.filter(item => item.$type !== 'flowable:ExecutionListener')
+          extensionElements.values = extensionElements.values?.filter(item => item.$type !== 'flowable:ExecutionListener') ?? []
         }
       }
     },
